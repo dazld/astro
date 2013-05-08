@@ -1,63 +1,93 @@
 // constants. kinda.
 
-var TWOPI = Math.PI*2;
+var TWOPI = Math.PI * 2;
 
-var Player = function (x,y,controls) {
-	
+var Player = function(x, y, controls) {
 
-	this.vx = 0;
-	this.vy = 0;
-	this.x = x;
-	this.y = y;
-	this.position = new vector2d(x,y);
-	this.direction = 0;
-	this.path = [{x:50,y:50},{x:-50,y:50},{x:20,y:-50}];
+	this.position = new vector2d(x, y);
+	this.direction = Math.random() * 6.282;
+	this.path = [{
+		x: 50,
+		y: 50
+	}, {
+		x: -50,
+		y: 50	
+	}, {
+		x: 20,
+		y: -50
+	}];
 	this.controls = controls;
 	this.speed = 0;
+	this.autopilot = false;
 };
 
-Player.prototype.update = function(){
-	this.accel(this.controls.UP);
-	this.rotate();
-	//console.log(this.direction);
-};
+Player.prototype.update = function() {
+	if (this.controls.UP && !this.autopilot) {
+		this.accel(this.controls.UP);	
+	} else {
+		if (this.autopilot > 0) {
+			this.autopilot = this.autopilot-1;
+			this.autopilot = this.autopilot < 0 ? false : this.autopilot;
+			this.accel(true);
+		} else {
+			this.accel(false);
+			this.controls.LEFT = false;
+			this.controls.RIGHT = false;
+			var r = Math.random();
+			if (r > 0.9) {
+				this.autopilot = Math.random()*10 << 0;
+				r > 0.5 ? this.controls.LEFT = true : this.controls.RIGHT = true;
+			};
+		}
+	}
 
-Player.prototype.draw = function(ctx){
+
+	if (this.position.vx > window.innerWidth) {
+		this.position.vx = 0;
+	} else if (this.position.vx < 0) {
+		this.position.vx = window.innerWidth
+	}
+	if (this.position.vy > window.innerHeight) {
+		this.position.vy = 0;
+	} else if (this.position.vy < 0) {
+		this.position.vy = window.innerHeight
+	}
 	
+	this.rotate();
+};
 
+Player.prototype.draw = function(ctx) {
 	ctx.save();
-	ctx.translate(this.position.vx,this.position.vy);
+	ctx.translate(this.position.vx, this.position.vy);
 	ctx.rotate(this.direction);
-	ctx.translate(-25,-50);
+	ctx.translate(-25, -50);
 	ctx.beginPath();
 	ctx.strokeStyle = "white";
-	ctx.moveTo(0,0);
+	ctx.moveTo(0, 0);
 	var cx = 0;
 	var cy = 0;
-	this.path.forEach(function(point){
-		ctx.lineTo(cx + point.x,cy + point.y);
+	this.path.forEach(function(point) {
+		ctx.lineTo(cx + point.x, cy + point.y);
 		cx += point.x;
 		cy += point.y;
-	},this);
-
-	ctx.closePath();	
+	}, this);
+	ctx.closePath();
+	ctx.fill();
 	ctx.stroke();
-	
 	ctx.restore();
-}
-
-Player.prototype.rotate = function(){
-	if (this.controls.LEFT) {
-		this.direction = this.direction - 0.101;
-	};
-	if (this.controls.RIGHT) {
-		this.direction = this.direction + 0.101;
-	};
-
-	
 };
 
-Player.prototype.accel = function(add){
+Player.prototype.rotate = function() {
+	if (this.controls.LEFT) {
+		this.direction = this.direction - 0.051;
+	} else if (this.controls.RIGHT) {
+		this.direction = this.direction + 0.051;
+	} else {
+		this.direction = this.direction + 0.01;
+	}
+};
+
+Player.prototype.accel = function(add) {
 	if (add) {
 		this.speed = this.speed + 0.15;
 		if (this.speed > 10) {
@@ -70,17 +100,25 @@ Player.prototype.accel = function(add){
 		};
 	}
 
-	var accel = new vector2d(1,0);
+
+
+	var accel = new vector2d(1, 0);
 	accel.rotate(this.direction);
 	accel.scale(this.speed)
 
+	var blackHole = new vector2d(window.innerWidth/2-this.position.vx,window.innerHeight/2-this.position.vy);
+	// blackHole.rotate(this.direction)
+	var dist = blackHole.normalize();
+
+	blackHole.scale(Math.log(dist)/2);
+	accel.add(blackHole);
 
 	this.position.add(accel)
 
-}
+};
 
-var Bus = function(){
-	
+var Bus = function() {
+
 	if (this instanceof Bus === false) {
 		throw new Error('not called as a constructor');
 		return false;
@@ -88,21 +126,21 @@ var Bus = function(){
 
 	var bus = document.createElement('div');
 
-	this.trigger = function(evt,data){
+	this.trigger = function(evt, data) {
 		var e = new Event(evt);
 		e.data = data;
 		return bus.dispatchEvent(e);
 	}
 
-	this.on = function(evt, callback, context){
-		
+	this.on = function(evt, callback, context) {
+
 		context = context || window;
 		var boundCallback = callback.bind(context);
-		bus.addEventListener(evt,boundCallback,false);
+		bus.addEventListener(evt, boundCallback, false);
 		return boundCallback;
 	}
 
-	this.off = function(evt, callback){
+	this.off = function(evt, callback) {
 		bus.removeEventListener(evt, callback);
 	}
 
@@ -110,7 +148,7 @@ var Bus = function(){
 
 }
 
-function Game(options){
+function Game(options) {
 	options = options || {};
 	options.events = options.events || {};
 	var that = this;
@@ -119,27 +157,21 @@ function Game(options){
 	this.bus = new Bus();
 
 	var devicePixelRatio = window.devicePixelRatio || 1;
-    var backingStoreRatio = this.ctx.webkitBackingStorePixelRatio ||
-                        this.ctx.mozBackingStorePixelRatio ||
-                        this.ctx.msBackingStorePixelRatio ||
-                        this.ctx.oBackingStorePixelRatio ||
-                        this.ctx.backingStorePixelRatio || 1;
+	var backingStoreRatio = this.ctx.webkitBackingStorePixelRatio || this.ctx.mozBackingStorePixelRatio || this.ctx.msBackingStorePixelRatio || this.ctx.oBackingStorePixelRatio || this.ctx.backingStorePixelRatio || 1;
 
-    this.drawRatio = devicePixelRatio / backingStoreRatio;
-
-
+	this.drawRatio = devicePixelRatio / backingStoreRatio;
 	var sizeStageBound = this.sizeStage.bind(this);
 	var handleKeyBound = this.handleKey.bind(this);
 
-	window.addEventListener('resize',sizeStageBound);
-	window.addEventListener('keydown',handleKeyBound);
-	window.addEventListener('keyup',handleKeyBound);
+	window.addEventListener('resize', sizeStageBound);
+	window.addEventListener('keydown', handleKeyBound);
+	window.addEventListener('keyup', handleKeyBound);
 
 	// bind events passed at options
 	this.bindEvents(options.events);
 
 	// size the stage and append it to doc
-	var a = this.bindEvent('resize',function(e){
+	var a = this.bindEvent('resize', function(e) {
 		that.height = e.data.height;
 		that.width = e.data.width;
 	});
@@ -148,29 +180,7 @@ function Game(options){
 	var dims = sizeStageBound();
 	document.body.appendChild(c);
 };
-Game.prototype.drawPath = function(x,y,path,rotation){
-	
 
-	this.ctx.save();
-	this.ctx.translate(x+25,y+25);
-	this.ctx.rotate(rotation);
-
-	this.ctx.beginPath();
-	this.ctx.strokeStyle = "white";
-	this.ctx.moveTo(0,0);
-	var cx = 0;
-	var cy = 0;
-	path.forEach(function(point){
-		this.ctx.lineTo(cx + point.x,cy + point.y);
-		cx += point.x;
-		cy += point.y;
-	},this);
-
-	this.ctx.closePath();	
-	this.ctx.stroke();
-	
-	this.ctx.restore();
-}
 
 Game.prototype.players = [];
 Game.prototype.controlsState = {
@@ -180,25 +190,23 @@ Game.prototype.controlsState = {
 	RIGHT: false,
 	FIRE: false
 };
-
-Game.prototype.bindEvent = function(evt,callback){
-	var cb = this.bus.on(evt,callback,this);
+Game.prototype.bindEvent = function(evt, callback) {
+	var cb = this.bus.on(evt, callback, this);
 	return cb;
 }
-Game.prototype.bindEvents = function(events){
+Game.prototype.bindEvents = function(events) {
 	var cbs = [];
-	for(var e in events){
-		var cb = this.bus.on(e,events[e],this);
+	for (var e in events) {
+		var cb = this.bus.on(e, events[e], this);
 		cbs.push(cb);
 	}
 	return cbs;
-
 }
-Game.prototype.handleKey = function(e){
+Game.prototype.handleKey = function(e) {
 
 	var toggle = e.type === 'keyup' ? false : true;
 
-	switch(e.keyCode){
+	switch (e.keyCode) {
 		case 37:
 			this.controlsState.LEFT = toggle;
 			break;
@@ -218,10 +226,18 @@ Game.prototype.handleKey = function(e){
 			console.log(e.keyCode);
 			break;
 	}
-	
-}
+};
 
-Game.prototype.sizeStage = function(e){
+Game.prototype.tick = function(){
+	this.ctx.clearRect(0, 0, this.width, this.height);
+	this.players.forEach(function(player){
+		player.update();
+		player.draw(this.ctx);
+	},this);
+	
+};
+
+Game.prototype.sizeStage = function(e) {
 
 	var height = window.innerHeight;
 	var width = window.innerWidth;
@@ -230,22 +246,25 @@ Game.prototype.sizeStage = function(e){
 		height: height
 	};
 
-	this.canvas.setAttribute('height',height*this.drawRatio);
-	this.canvas.setAttribute('width',width*this.drawRatio);
-	this.canvas.style.width = width+"px";
-	this.canvas.style.height = height+"px";
-	this.ctx.scale(this.drawRatio,this.drawRatio);
-	this.bus.trigger('resize',dims);
+	this.canvas.setAttribute('height', height * this.drawRatio);
+	this.canvas.setAttribute('width', width * this.drawRatio);
+	this.canvas.style.width = width + "px";
+	this.canvas.style.height = height + "px";
+	this.ctx.scale(this.drawRatio, this.drawRatio);
+	this.bus.trigger('resize', dims);
 
 	return dims;
 };
 
 var game = new Game();
+var numPlayers = 100;
+while(numPlayers > 0){
+	var p = new Player(Math.random()*window.innerWidth, Math.random()*window.innerHeight, game.controlsState);
+	game.players.push(p);
+	numPlayers--;	
+}
 
-var p = new Player(100,150,game.controlsState);
-game.players.push(p);
-window.setInterval(function(){
-	game.ctx.clearRect(0,0,window.innerWidth,window.innerHeight)
-	p.update();
-	p.draw(game.ctx);
-},16)
+
+window.setInterval(function() {
+	game.tick();	
+}, 32)
