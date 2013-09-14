@@ -22,25 +22,9 @@ var Player = function(x, y, controls) {
 };
 
 Player.prototype.update = function() {
-	if (this.controls.UP && !this.autopilot) {
-		this.accel(this.controls.UP);	
-	} else {
-		if (this.autopilot > 0) {
-			this.autopilot = this.autopilot-1;
-			this.autopilot = this.autopilot < 0 ? false : this.autopilot;
-			this.accel(true);
-		} else {
-			this.accel(false);
-			this.controls.LEFT = false;
-			this.controls.RIGHT = false;
-			var r = Math.random();
-			if (r > 0.9) {
-				this.autopilot = Math.random()*10 << 0;
-				r > 0.5 ? this.controls.LEFT = true : this.controls.RIGHT = true;
-			};
-		}
-	}
-
+	
+	this.accel(this.controls.UP);
+	this.rotate();
 
 	if (this.position.vx > window.innerWidth) {
 		this.position.vx = 0;
@@ -53,7 +37,7 @@ Player.prototype.update = function() {
 		this.position.vy = window.innerHeight
 	}
 	
-	this.rotate();
+	
 };
 
 Player.prototype.draw = function(ctx) {
@@ -82,17 +66,16 @@ Player.prototype.rotate = function() {
 		this.direction = this.direction - 0.051;
 	} else if (this.controls.RIGHT) {
 		this.direction = this.direction + 0.051;
-	} else {
-		this.direction = this.direction + 0.01;
 	}
+
 };
 
 Player.prototype.accel = function(add) {
 	if (add) {
-		this.speed = this.speed + 0.15;
-		if (this.speed > 10) {
-			this.speed = 10;
-		};
+		this.speed = this.speed + 0.25;
+		// if (this.speed > 10) {
+		// 	this.speed = 10;
+		// };
 	} else {
 		this.speed = this.speed * 0.98;
 		if (this.speed < 0.1) {
@@ -106,12 +89,12 @@ Player.prototype.accel = function(add) {
 	accel.rotate(this.direction);
 	accel.scale(this.speed)
 
-	var blackHole = new vector2d(window.innerWidth/2-this.position.vx,window.innerHeight/2-this.position.vy);
-	// blackHole.rotate(this.direction)
-	var dist = blackHole.normalize();
+	// var blackHole = new vector2d(window.innerWidth/2-this.position.vx,window.innerHeight/2-this.position.vy);
+	// // blackHole.rotate(this.direction);
+	// var dist = blackHole.normalize();
 
-	blackHole.scale(Math.log(dist)/2);
-	accel.add(blackHole);
+	// blackHole.scale(Math.log(dist)+1);
+	// accel.add(blackHole);
 
 	this.position.add(accel)
 
@@ -221,6 +204,7 @@ Game.prototype.handleKey = function(e) {
 			break;
 		case 32:
 			this.controlsState.FIRE = toggle;
+			console.log('pew pew')
 			break;
 		default:
 			console.log(e.keyCode);
@@ -235,6 +219,8 @@ Game.prototype.tick = function(){
 		player.draw(this.ctx);
 	},this);
 	
+	window.requestAnimationFrame(this.tick.bind(this))
+
 };
 
 Game.prototype.sizeStage = function(e) {
@@ -257,14 +243,12 @@ Game.prototype.sizeStage = function(e) {
 };
 
 var game = new Game();
-var numPlayers = 100;
+var numPlayers = 10;
 while(numPlayers > 0){
 	var p = new Player(Math.random()*window.innerWidth, Math.random()*window.innerHeight, game.controlsState);
 	game.players.push(p);
-	numPlayers--;	
+	numPlayers--;
 }
 
+game.tick();
 
-window.setInterval(function() {
-	game.tick();	
-}, 32)
